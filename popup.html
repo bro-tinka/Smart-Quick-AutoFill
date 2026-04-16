@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Autofill</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      padding: 12px;
+      width: 340px;
+      background: #f5f5f5;
+      margin: 0;
+    }
+
+    h3 {
+      margin: 12px 0 8px 0;
+      font-size: 14px;
+      color: #333;
+      border-bottom: 2px solid #2196F3;
+      padding-bottom: 6px;
+    }
+
+    h4 {
+      margin: 10px 0 6px 0;
+      font-size: 12px;
+      color: #666;
+      font-weight: 600;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 6px;
+      margin-bottom: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    #save {
+      background: #4CAF50;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    .fill-buttons {
+      display: flex;
+      gap: 6px;
+      margin: 8px 0;
+    }
+
+    .fill-buttons button {
+      flex: 1;
+      padding: 7px 4px;
+      font-size: 12px;
+      margin: 0;
+    }
+
+    #fillEmpty {
+      background: #2196F3;
+      color: white;
+    }
+
+    #fillForce {
+      background: #FF9800;
+      color: white;
+    }
+
+    #preview {
+      background: #9C27B0;
+      color: white;
+    }
+
+    .clear-section {
+      background: #fff3cd;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 10px;
+      border: 1px solid #ffc107;
+    }
+
+    .clear-section select {
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .clear-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .clear-buttons button {
+      flex: 1;
+      padding: 6px;
+      font-size: 11px;
+      margin: 0;
+    }
+
+    #clearSingle {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    #clearAll {
+      background: #d32f2f;
+      color: white;
+    }
+
+    .info-text {
+      font-size: 11px;
+      color: #777;
+      margin: 6px 0;
+    }
+
+    .divider {
+      height: 1px;
+      background: #ddd;
+      margin: 8px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+<h3>📝 User Data</h3>
+
+<input id="name" placeholder="Full Name">
+<input id="email" placeholder="Email Address">
+<input id="phone" placeholder="Phone Number">
+<input id="age" placeholder="Age">
+
+<input id="college" placeholder="College / University">
+<input id="cgpa" placeholder="CGPA / GPA">
+<input id="tenth" placeholder="10th Percentage">
+<input id="twelfth" placeholder="12th Percentage">
+
+<input id="country" placeholder="Country">
+<input id="state" placeholder="State">
+<input id="district" placeholder="District / City">
+<input id="address" placeholder="Full Address">
+
+<input id="gender" placeholder="Gender">
+<input id="dob" placeholder="Date of Birth (YYYY-MM-DD)">
+<input id="branch" placeholder="Branch / Stream">
+<input id="skills" placeholder="Skills (comma-separated)">
+<input id="linkedin" placeholder="LinkedIn Profile URL">
+<input id="github" placeholder="GitHub Profile URL">
+<input id="pincode" placeholder="Pincode / Zip Code">
+
+<button id="save">💾 Save Data</button>
+
+<div class="divider"></div>
+
+<h3>🎯 Fill Form</h3>
+
+<div class="fill-buttons">
+  <button id="fillEmpty" title="Fill only empty fields (recommended)">Fill Empty</button>
+  <button id="fillForce" title="Overwrite all fields">Force Fill</button>
+  <button id="preview" title="Preview without filling">Preview</button>
+</div>
+
+<p class="info-text">
+  <strong>Fill Empty:</strong> Fills only empty fields<br>
+  <strong>Force Fill:</strong> Overwrites all fields<br>
+  <strong>Preview:</strong> Shows where data would go
+</p>
+
+<div class="divider"></div>
+
+<div class="clear-section">
+  <h4>🗑️ Clear Data</h4>
+  
+  <select id="fieldToClear">
+    <option value="">Select field to clear...</option>
+    <option value="name">Name</option>
+    <option value="email">Email</option>
+    <option value="phone">Phone</option>
+    <option value="age">Age</option>
+    <option value="college">College</option>
+    <option value="cgpa">CGPA</option>
+    <option value="tenth">10th Percentage</option>
+    <option value="twelfth">12th Percentage</option>
+    <option value="country">Country</option>
+    <option value="state">State</option>
+    <option value="district">District</option>
+    <option value="address">Address</option>
+    <option value="gender">Gender</option>
+    <option value="dob">Date of Birth</option>
+    <option value="branch">Branch</option>
+    <option value="skills">Skills</option>
+    <option value="linkedin">LinkedIn</option>
+    <option value="github">GitHub</option>
+    <option value="pincode">Pincode</option>
+  </select>
+
+  <div class="clear-buttons">
+    <button id="clearSingle">Clear One</button>
+    <button id="clearAll">Clear All</button>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+
+</body>
+</html>
