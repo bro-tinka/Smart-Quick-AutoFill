@@ -5,6 +5,18 @@
   "description": "Intelligent form autofill with fuzzy matching - fully local, no API calls",
   "permissions": ["storage", "activeTab", "scripting"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "log16.png",
+      "32": "log32.png",
+      "48": "log64.png",
+      "128": "log128.png"
+    }
+  },
+  "icons": {
+    "16": "log16.png",
+    "32": "log32.png",
+    "48": "log64.png",
+    "128": "log128.png"
   }
 }
