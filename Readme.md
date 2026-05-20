@@ -38,9 +38,10 @@ A lightweight Chrome extension that intelligently autofills forms across website
 2. Open Chrome → `chrome://extensions/`  
 3. Enable **Developer mode**  
 4. Click **Load unpacked**  
-5. Select project folder  
+5. Select Unzipped folder  
 
 ## Notes
 
 - Works best when form labels are clear
+- 100% fully offline
 - No data leaves your browser
