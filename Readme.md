@@ -34,12 +34,12 @@ A lightweight Chrome extension that intelligently autofills forms across website
 
 ## Installation
 
-1. Clone/download the repo  
-2. Open Chrome → `chrome://extensions/`  
+1. Clone/download the repo or ZiP File
+2. Open Chrome and type →```chrome://extensions/```  
 3. Enable **Developer mode**  
 4. Click **Load unpacked**  
 5. Select Unzipped folder  
-
+6. You can see your extension in the extension bar in top right of your browser Tab
 ## Notes
 
 - Works best when form labels are clear
