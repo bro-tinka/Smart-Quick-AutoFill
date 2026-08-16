@@ -15,7 +15,8 @@ A lightweight Chrome extension that intelligently autofills forms across website
 - 🔄 Handles dynamic forms (React, Angular, etc.)
 - 🎨 Highlights filled fields
 - 🧹 Clear individual or all saved data
-- 🔒 Fully local — no API, no tracking
+- 🔒 Fully local — no API, no tracking (you have your data!)
+- ⬆️⬇️ (import Export Data utilities)
 
 ## How It Works
 
