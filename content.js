@@ -17,6 +17,8 @@
   let observerLifecycleTimeout = null;
   let lastToastMode = null;
   let previewedElements = []; // Track previewed elements for cleanup
+  let autofilledElements = new Set(); // Track only fields filled by this content script
+  let matchPanelTimeout = null;
   const labelCache = new WeakMap(); // Cache normalized labels per element
   let messageListenerAttached = false;
 
@@ -105,19 +107,38 @@
     linkedin: [
       "linkedin", "linkedin profile", "linkedin url",
       "linkedin id", "linked in", "linkedin account",
-      "your linkedin"
+      "your linkedin", "linkedin profile url",
+      "profile on linkedin", "linkedin web address"
     ],
     github: [
       "github", "github profile", "github url",
       "github id", "github account", "git hub",
-      "your github", "github username"
+      "your github", "github username","github profile url"
     ],
     pincode: [
       "pincode", "zip code", "postal code",
       "pin code", "post code", "zipcode",
       "your pincode", "area code"
+    ],
+    firstName: [
+      "first name", "your first name", "enter first name"
+    ],
+    middleName: [
+      "middle name", "your middle name", "enter middle name", "middle initial"
+    ],
+    lastName: [
+      "last name", "your last name", "enter last name", "surname", "your surname", "family name"
     ]
   };
+
+const preprocessedMatchers = {};
+
+Object.entries(fieldMatchers).forEach(([field, keywords]) => {
+  preprocessedMatchers[field] = keywords.map(keyword => ({
+    raw: keyword,
+    tokens: tokenize(keyword)
+  }));
+});
 
   // === TEXT NORMALIZATION ===
   function normalize(text) {
@@ -172,48 +193,84 @@
 
     let matchCount = 0;
     keywordTokens.forEach(kw => {
-      labelTokens.forEach(lt => {
+      const matched = labelTokens.some(lt => {
         if (lt === kw || similarity(lt, kw) > 0.8) {
-          matchCount++;
+          return true;
         }
+        return false;
       });
+      if (matched) matchCount++;
     });
 
-    return matchCount / Math.max(labelTokens.length, keywordTokens.length);
+    return matchCount / keywordTokens.length;
   }
 
-  // === FIELD MATCHER (enhanced) ===
-  function findField(questionText) {
-    const text = normalize(questionText);
-    let bestMatch = null;
+  // === BEST KEYWORD MATCH FOR A FIELD ===
+  function getBestKeywordMatch(label, field) {
+    let bestKeyword = '';
     let bestScore = 0;
 
+    if (!fieldMatchers[field]) {
+      return { keyword: bestKeyword, score: bestScore };
+    }
+
+    fieldMatchers[field].forEach(keyword => {
+      const score = tokenBasedScore(label, keyword);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestKeyword = keyword;
+      }
+    });
+
+    return {
+      keyword: bestKeyword,
+      score: Math.round(bestScore * 100)
+    };
+  }
+
+  // === FIELD MATCHER DETAILS ===
+  function findFieldMatch(questionText) {
+    const text = normalize(questionText);
+    let bestMatch = null;
+    let bestKeyword = '';
+    let bestScore = 0;
+    let bestKeywordTokenCount = 0;
+
     for (let fieldKey in fieldMatchers) {
-      for (let keyword of fieldMatchers[fieldKey]) {
-        const normKeyword = normalize(keyword);
+      for (let entry of preprocessedMatchers[fieldKey]) {
+        const keyword = entry.raw;
+        const keyTokens = entry.tokens;
+        const score = Math.round(tokenBasedScore(text, keyword) * 100);
 
-        // Token-based scoring (handles word reordering)
-        const tokenScore = tokenBasedScore(text, normKeyword);
-        if (tokenScore > bestScore) {
-          bestScore = tokenScore;
+        if (
+          score > bestScore ||
+          (score === bestScore && keyTokens.length > bestKeywordTokenCount)
+        ) {
+          bestScore = score;
+          bestKeyword = keyword;
+          bestKeywordTokenCount = keyTokens.length;
           bestMatch = fieldKey;
-        }
-
-        // Direct token inclusion (fast path)
-        const textTokens = tokenize(text);
-        const keyTokens = tokenize(normKeyword);
-        if (keyTokens.every(kt => textTokens.some(tt => tt === kt))) {
-          return fieldKey;
         }
       }
     }
 
     // Tuned threshold for fuzzy matching
-    if (bestScore > 0.65) {
-      return bestMatch;
+    if (bestScore > 60) {
+      return {
+        field: bestMatch,
+        keyword: bestKeyword,
+        score: bestScore
+      };
     }
 
     return null;
+  }
+
+  // === FIELD MATCHER (enhanced) ===
+  function findField(questionText) {
+    const match = findFieldMatch(questionText);
+    return match ? match.field : null;
   }
 
   // === ELEMENT VISIBILITY CHECK (improved) ===
@@ -350,6 +407,240 @@ function getLabelText(element) {
     }, 3000);
   }
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function escapeCssIdentifier(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value);
+    }
+    return String(value).replace(/["\\]/g, '\\$&');
+  }
+
+  function dispatchFieldEvents(element) {
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new Event('blur', { bubbles: true }));
+  }
+
+  function trackAutofilledElement(element) {
+    if (element) {
+      autofilledElements.add(element);
+    }
+  }
+
+  function addMatchDetail(matchDetails, labelText, field, keyword, score) {
+    matchDetails.push({
+      field,
+      label: labelText,
+      score,
+      matchedKeyword: keyword
+    });
+  }
+
+  function buildFieldScoreMap(matchDetails) {
+  const scoreMap = {};
+
+  matchDetails.forEach(detail => {
+    const existing = scoreMap[detail.field];
+
+    // Keep highest confidence score per field
+    if (!existing || detail.score > existing.score) {
+      scoreMap[detail.field] = {
+        score: detail.score,
+        keyword: detail.matchedKeyword,
+        label: detail.label
+      };
+    }
+  });
+
+  return scoreMap;
+}
+
+function persistFieldScores(scoreMap) {
+  chrome.storage.local.set({
+    latestFieldScores: scoreMap
+  });
+}
+
+  function showMatchPanel(matchDetails) {
+    const existingPanel = document.getElementById('smart-autofill-panel');
+    if (existingPanel) existingPanel.remove();
+    clearTimeout(matchPanelTimeout);
+
+    if (!matchDetails || matchDetails.length === 0) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'smart-autofill-panel';
+    panel.style.cssText = `
+      position: fixed;
+      right: 18px;
+      bottom: 72px;
+      width: min(520px, calc(100vw - 32px));
+      max-height: 360px;
+      overflow: hidden;
+      z-index: 999999;
+      background: #181c20;
+      color: #f3f6f8;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 8px;
+      box-shadow: 0 12px 34px rgba(0,0,0,0.36);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      pointer-events: auto;
+    `;
+
+    const rows = matchDetails.map(detail => `
+      <tr>
+        <td>${escapeHtml(detail.label || '(no label)')}</td>
+        <td>${escapeHtml(detail.field)}</td>
+        <td>${escapeHtml(detail.matchedKeyword)}</td>
+        <td>${escapeHtml(detail.score)}%</td>
+      </tr>
+    `).join('');
+
+    panel.innerHTML = `
+      <div id="smart-autofill-panel-header" style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        padding:10px 12px;
+        background:#222830;
+        cursor:move;
+        user-select:none;
+      ">
+        <strong>Smart Autofill Matches (${matchDetails.length})</strong>
+        <button id="smart-autofill-panel-toggle" type="button" style="
+          background:#313945;
+          color:#fff;
+          border:0;
+          border-radius:4px;
+          cursor:pointer;
+          width:26px;
+          height:24px;
+          line-height:20px;
+        ">-</button>
+      </div>
+      <div id="smart-autofill-panel-body" style="max-height:300px; overflow-y:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th>Form Label</th>
+              <th>Matched Field</th>
+              <th>Keyword</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #smart-autofill-panel th,
+      #smart-autofill-panel td {
+        padding: 7px 9px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        text-align: left;
+        vertical-align: top;
+      }
+      #smart-autofill-panel th {
+        position: sticky;
+        top: 0;
+        background: #181c20;
+        color: #aeb9c4;
+        font-weight: 700;
+      }
+    `;
+    panel.appendChild(style);
+    document.body.appendChild(panel);
+
+    const body = panel.querySelector('#smart-autofill-panel-body');
+    const toggle = panel.querySelector('#smart-autofill-panel-toggle');
+    toggle.addEventListener('click', () => {
+      const isCollapsed = body.style.display === 'none';
+      body.style.display = isCollapsed ? 'block' : 'none';
+      toggle.textContent = isCollapsed ? '-' : '+';
+    });
+
+    const header = panel.querySelector('#smart-autofill-panel-header');
+    let isDragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const onMouseMove = (event) => {
+      if (!isDragging) return;
+      panel.style.left = `${Math.max(0, event.clientX - offsetX)}px`;
+      panel.style.top = `${Math.max(0, event.clientY - offsetY)}px`;
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    header.addEventListener('mousedown', (event) => {
+      if (event.target === toggle) return;
+      const rect = panel.getBoundingClientRect();
+      isDragging = true;
+      offsetX = event.clientX - rect.left;
+      offsetY = event.clientY - rect.top;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    matchPanelTimeout = setTimeout(() => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      if (panel.isConnected) panel.remove();
+    }, 8000);
+  }
+
+  function clearAutofilledFields() {
+    let cleared = 0;
+
+    autofilledElements.forEach(element => {
+      if (!element || !element.isConnected) return;
+
+      if (
+        element.tagName === 'INPUT' ||
+        element.tagName === 'TEXTAREA'
+      ) {
+        if (
+          element.type === 'checkbox' ||
+          element.type === 'radio'
+        ) {
+          element.checked = false;
+        } else {
+          element.value = '';
+        }
+      } else if (element.tagName === 'SELECT') {
+        element.selectedIndex = 0;
+      } else if (element.contentEditable === 'true') {
+        element.innerText = '';
+      }
+
+      unhighlightField(element);
+      dispatchFieldEvents(element);
+      cleared++;
+    });
+
+    autofilledElements.clear();
+    showToast(`Cleared ${cleared} autofilled fields`);
+  }
+
   // === PREVIEW MODE (with staged retries for dynamic forms) ===
   let previewTimeout1 = null;
   let previewTimeout2 = null;
@@ -450,10 +741,10 @@ function getLabelText(element) {
       }, 1200);
       
       // Show preliminary message on first call
-      showToast(`👁 Preview: Scanning forms...`);
+      showToast(`ðŸ‘� Preview: Scanning forms...`);
     } else if (count > 0) {
       // Show final count only if this retry found fields
-      showToast(`👁 Preview: ${count} fields would be filled`);
+      showToast(`ðŸ‘� Preview: ${count} fields would be filled`);
     }
   }
 
@@ -495,6 +786,7 @@ function getLabelText(element) {
   // === IMPROVED FORM FILLING ===
   function fillForm(userData, mode = 'empty') {
     let filledCount = 0;
+    const matchDetails = [];
 
     // ===== TEXT INPUTS, TEXTAREAS, DATES, ETC =====
     const textElements = document.querySelectorAll(
@@ -506,16 +798,31 @@ function getLabelText(element) {
       if (mode === 'empty' && element.value.trim().length > 0) return;
 
       const labelText = getLabelText(element);
-      const field = findField(labelText);
-      if (!field || !userData[field]) return;
+      const match = findFieldMatch(labelText);
+      if (!match) return;
+
+      const field = match.field;
+
+      // Handle separate name fields
+      if (field === 'firstName' && userData.firstName) {
+        element.value = userData.firstName;
+      } else if (field === 'middleName' && userData.middleName) {
+        element.value = userData.middleName;
+      } else if (field === 'lastName' && userData.lastName) {
+        element.value = userData.lastName;
+      } else if (field === 'name' && userData.name) {
+        element.value = userData.name;
+      } else if (userData[field]) {
+        element.value = userData[field];
+      } else {
+        return;
+      }
 
       element.focus();
-      element.value = userData[field];
       highlightField(element);
-
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-      element.dispatchEvent(new Event('blur', { bubbles: true }));
+      dispatchFieldEvents(element);
+      trackAutofilledElement(element);
+      addMatchDetail(matchDetails, labelText, field, match.keyword, match.score);
 
       filledCount++;
     });
@@ -528,16 +835,17 @@ function getLabelText(element) {
       if (mode === 'empty' && (element.innerText || '').trim().length > 0) return;
 
       const labelText = getLabelText(element);
-      const field = findField(labelText);
+      const match = findFieldMatch(labelText);
+      const field = match ? match.field : null;
       if (!field || !userData[field]) return;
 
       element.focus();
       element.innerText = userData[field];
       highlightField(element);
 
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-      element.dispatchEvent(new Event('blur', { bubbles: true }));
+      dispatchFieldEvents(element);
+      trackAutofilledElement(element);
+      addMatchDetail(matchDetails, labelText, field, match.keyword, match.score);
 
       filledCount++;
     });
@@ -550,7 +858,8 @@ function getLabelText(element) {
       if (mode === 'empty' && select.value.length > 0) return;
 
       const labelText = getLabelText(select);
-      const field = findField(labelText);
+      const match = findFieldMatch(labelText);
+      const field = match ? match.field : null;
       if (!field || !userData[field]) return;
 
       const targetValue = userData[field].toLowerCase();
@@ -578,8 +887,10 @@ function getLabelText(element) {
       if (bestOption && bestScore > 0.55) {
         select.value = bestOption.value;
         highlightField(select);
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        select.dispatchEvent(new Event('blur', { bubbles: true }));
+        dispatchFieldEvents(select);
+        trackAutofilledElement(select);
+        addMatchDetail(matchDetails, labelText, field, match.keyword, match.score);
+        
         filledCount++;
       }
     });
@@ -595,7 +906,8 @@ function getLabelText(element) {
       if (mode === 'empty' && element.checked) return;
 
       const labelText = getLabelText(element);
-      const field = findField(labelText);
+      const match = findFieldMatch(labelText);
+      const field = match ? match.field : null;
       if (!field || !userData[field]) return;
 
       const targetValue = userData[field].toLowerCase();
@@ -605,18 +917,20 @@ function getLabelText(element) {
 
       const labelScore = tokenBasedScore(elementLabel, targetValue);
       const valueScore = tokenBasedScore(element.value.toLowerCase(), targetValue);
+      const maxScore = Math.max(labelScore, valueScore);
 
-      if (Math.max(labelScore, valueScore) > 0.65) {
+      if (maxScore > 0.65) {
         // RADIO BUTTONS: Only one per named group
         if (element.type === 'radio') {
-          const groupName = element.name || `__unnamed_${Math.random()}`;
+          const groupName = element.name || `__unnamed_${field}`;
           
           // Skip if this group already has a filled radio
           if (radioGroups[groupName]) return;
           
           // Uncheck other radios in the same group (for mode='force')
-          if (mode === 'force') {
-            document.querySelectorAll(`input[type='radio'][name='${element.name}']`).forEach(radio => {
+          if (mode === 'force' && element.name) {
+            const root = element.getRootNode();
+            root.querySelectorAll(`input[type='radio'][name='${escapeCssIdentifier(element.name)}']`).forEach(radio => {
               radio.checked = false;
             });
           }
@@ -630,13 +944,99 @@ function getLabelText(element) {
         }
 
         highlightField(element);
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-        element.dispatchEvent(new Event('blur', { bubbles: true }));
+        dispatchFieldEvents(element);
+        trackAutofilledElement(element);
+        addMatchDetail(matchDetails, labelText, field, match.keyword, match.score);
+        
         filledCount++;
       }
     });
 
-    showToast(`✓ Filled ${filledCount} fields`);
+    // ===== SHADOW DOM FIELDS =====
+    scanShadowDOM(userData, (element, field, value) => {
+      const labelText = getLabelText(element);
+      const match = findFieldMatch(labelText) || {
+        field,
+        keyword: getBestKeywordMatch(labelText, field).keyword,
+        score: getBestKeywordMatch(labelText, field).score
+      };
+
+      if (element.tagName === 'SELECT') {
+        if (mode === 'empty' && element.value.length > 0) return;
+
+        const targetValue = value.toLowerCase();
+        let bestOption = null;
+        let bestScore = 0;
+
+        for (let option of element.options) {
+          if (option.disabled) continue;
+          if (!option.value || option.text === option.value && option.text === '') continue;
+
+          const optionScore = Math.max(
+            tokenBasedScore(option.text, targetValue),
+            tokenBasedScore(option.value, targetValue)
+          );
+
+          if (optionScore > bestScore) {
+            bestScore = optionScore;
+            bestOption = option;
+          }
+        }
+
+        if (!bestOption || bestScore <= 0.55) return;
+        element.value = bestOption.value;
+      } else if (element.type === 'checkbox' || element.type === 'radio') {
+        if (mode === 'empty' && element.checked) return;
+
+        const targetValue = value.toLowerCase();
+        const elementLabel = element.labels && element.labels[0]
+          ? element.labels[0].innerText.toLowerCase()
+          : element.value.toLowerCase();
+
+        const maxScore = Math.max(
+          tokenBasedScore(elementLabel, targetValue),
+          tokenBasedScore(element.value.toLowerCase(), targetValue)
+        );
+
+        if (maxScore <= 0.65) return;
+
+        if (element.type === 'radio') {
+          const groupName = element.name || `__shadow_unnamed_${field}`;
+          if (radioGroups[groupName]) return;
+          element.checked = true;
+          radioGroups[groupName] = true;
+        } else {
+          element.checked = true;
+        }
+      } else if (element.contentEditable === 'true') {
+        if (mode === 'empty' && (element.innerText || '').trim().length > 0) return;
+        element.focus();
+        element.innerText = value;
+      } else {
+        if (mode === 'empty' && element.value.trim().length > 0) return;
+        element.value = value;
+      }
+
+      highlightField(element);
+      trackAutofilledElement(element);
+      dispatchFieldEvents(element);
+      addMatchDetail(matchDetails, labelText, match.field, match.keyword, match.score);
+      filledCount++;
+    }, false);
+
+    const scoreMap = buildFieldScoreMap(matchDetails);
+
+    showToast(`Filled ${filledCount} fields`);
+    showMatchPanel(matchDetails);
+
+    // Send scores back to popup
+    persistFieldScores(scoreMap);
+
+    chrome.runtime.sendMessage({
+    action: 'fieldScores',
+    scores: scoreMap
+    });
+
     return filledCount;
   }
 
@@ -652,7 +1052,6 @@ function getLabelText(element) {
 
     const OBSERVER_TIMEOUT = 5000; // 5 seconds
     const DEBOUNCE_DELAY = 800; // 800ms debounce for mutations
-    let hasToasted = false;
 
     globalObserver = new MutationObserver((mutations) => {
       // Only trigger if relevant nodes were added (inputs, selects, textareas, contenteditable)
@@ -716,7 +1115,7 @@ function getLabelText(element) {
       if (msg.action === 'fillForm') {
         chrome.storage.local.get('userData', (res) => {
           if (!res.userData || Object.keys(res.userData).length === 0) {
-            showToast('⚠ No saved data');
+            showToast('âš  No saved data');
             return;
           }
 
@@ -733,6 +1132,8 @@ function getLabelText(element) {
             setupMutationObserver(res.userData, mode);
           }
         });
+      } else if (msg.action === 'clearFilledFields') {
+        clearAutofilledFields();
       }
     });
     messageListenerAttached = true;

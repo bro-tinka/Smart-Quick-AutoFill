@@ -77,6 +77,33 @@
       margin: 0;
     }
 
+    .field-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .field-row input {
+        flex: 1;
+    }
+
+   .match-score {
+    min-width: 46px;
+    height: 24px;
+    border-radius: 6px;
+    background: #1e1e1e;
+    color: #4CAF50;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #333;
+    visibility: hidden;
+    transition: 0.2s ease;
+    flex-shrink: 0;
+    }
     #fillEmpty {
       background: #2196F3;
       color: white;
@@ -92,38 +119,8 @@
       color: white;
     }
 
-    .clear-section {
-      background: #fff3cd;
-      padding: 8px;
-      border-radius: 4px;
-      margin-top: 10px;
-      border: 1px solid #ffc107;
-    }
-
-    .clear-section select {
-      margin-bottom: 6px;
-      font-size: 12px;
-    }
-
-    .clear-buttons {
-      display: flex;
-      gap: 6px;
-    }
-
-    .clear-buttons button {
-      flex: 1;
-      padding: 6px;
-      font-size: 11px;
-      margin: 0;
-    }
-
-    #clearSingle {
-      background: #ff6b6b;
-      color: white;
-    }
-
-    #clearAll {
-      background: #d32f2f;
+    #clearFilled {
+      background: #e53935;
       color: white;
     }
 
@@ -145,30 +142,92 @@
 
 <h3>📝 User Data</h3>
 
-<input id="name" placeholder="Full Name">
-<input id="email" placeholder="Email Address">
-<input id="phone" placeholder="Phone Number">
-<input id="age" placeholder="Age">
 
-<input id="college" placeholder="College / University">
-<input id="cgpa" placeholder="CGPA / GPA">
-<input id="tenth" placeholder="10th Percentage">
-<input id="twelfth" placeholder="12th Percentage">
+<div class="field-row">
+  <input id="name" placeholder="Full Name">
+  <span class="match-score" id="score-name"></span>
+</div>
+<div class="field-row">
+  <input id="email" placeholder="Email Address">
+  <span class="match-score" id="score-email"></span>
+</div>
+<div class="field-row">
+  <input id="phone" placeholder="Phone Number">
+  <span class="match-score" id="score-phone"></span>
+</div>
+<div class="field-row">
+  <input id="age" placeholder="Age">
+  <span class="match-score" id="score-age"></span>
+</div>
 
-<input id="country" placeholder="Country">
-<input id="state" placeholder="State">
-<input id="district" placeholder="District / City">
-<input id="address" placeholder="Full Address">
+<div class="field-row">
+  <input id="college" placeholder="College / University">
+  <span class="match-score" id="score-college"></span>
+</div>
+<div class="field-row">
+  <input id="cgpa" placeholder="CGPA / GPA">
+  <span class="match-score" id="score-cgpa"></span>
+</div>
+<div class="field-row">
+  <input id="tenth" placeholder="10th Percentage">
+  <span class="match-score" id="score-tenth"></span>
+</div>
+<div class="field-row">
+  <input id="twelfth" placeholder="12th Percentage">
+  <span class="match-score" id="score-twelfth"></span>
+</div>
 
-<input id="gender" placeholder="Gender">
-<input id="dob" placeholder="Date of Birth (YYYY-MM-DD)">
-<input id="branch" placeholder="Branch / Stream">
-<input id="skills" placeholder="Skills (comma-separated)">
-<input id="linkedin" placeholder="LinkedIn Profile URL">
-<input id="github" placeholder="GitHub Profile URL">
-<input id="pincode" placeholder="Pincode / Zip Code">
+<div class="field-row">
+  <input id="country" placeholder="Country">
+  <span class="match-score" id="score-country"></span>
+</div>
+<div class="field-row">
+  <input id="state" placeholder="State">
+  <span class="match-score" id="score-state"></span>
+</div>
+<div class="field-row">
+  <input id="district" placeholder="District / City">
+  <span class="match-score" id="score-district"></span>
+</div>
+<div class="field-row">
+  <input id="address" placeholder="Full Address">
+  <span class="match-score" id="score-address"></span>
+</div>
+
+<div class="field-row">
+  <input id="gender" placeholder="Gender">
+  <span class="match-score" id="score-gender"></span>
+</div>
+<div class="field-row">
+  <input id="dob" placeholder="Date of Birth (YYYY-MM-DD)">
+  <span class="match-score" id="score-dob"></span>
+</div>
+<div class="field-row">
+  <input id="branch" placeholder="Branch / Stream">
+  <span class="match-score" id="score-branch"></span>
+</div>
+<div class="field-row">
+  <input id="skills" placeholder="Skills (comma-separated)">
+  <span class="match-score" id="score-skills"></span>
+</div>
+<div class="field-row">
+  <input id="linkedin" placeholder="LinkedIn Profile URL">
+  <span class="match-score" id="score-linkedin"></span>
+</div>
+<div class="field-row">
+  <input id="github" placeholder="GitHub Profile URL">
+  <span class="match-score" id="score-github"></span>
+</div>
+<div class="field-row">
+  <input id="pincode" placeholder="Pincode / Zip Code">
+  <span class="match-score" id="score-pincode"></span>
+</div>
+
 
 <button id="save">💾 Save Data</button>
+<button id="exportData">Export Saved Data⬇️</button>
+<button id="importData">Import Saved Data⬆️</button>
+<input id="importFile" type="file" accept="application/json,.json" hidden>
 
 <div class="divider"></div>
 
@@ -188,37 +247,12 @@
 
 <div class="divider"></div>
 
-<div class="clear-section">
-  <h4>🗑️ Clear Data</h4>
-  
-  <select id="fieldToClear">
-    <option value="">Select field to clear...</option>
-    <option value="name">Name</option>
-    <option value="email">Email</option>
-    <option value="phone">Phone</option>
-    <option value="age">Age</option>
-    <option value="college">College</option>
-    <option value="cgpa">CGPA</option>
-    <option value="tenth">10th Percentage</option>
-    <option value="twelfth">12th Percentage</option>
-    <option value="country">Country</option>
-    <option value="state">State</option>
-    <option value="district">District</option>
-    <option value="address">Address</option>
-    <option value="gender">Gender</option>
-    <option value="dob">Date of Birth</option>
-    <option value="branch">Branch</option>
-    <option value="skills">Skills</option>
-    <option value="linkedin">LinkedIn</option>
-    <option value="github">GitHub</option>
-    <option value="pincode">Pincode</option>
-  </select>
+<h3>&#129529; Clear Filled Fields</h3>
 
-  <div class="clear-buttons">
-    <button id="clearSingle">Clear One</button>
-    <button id="clearAll">Clear All</button>
-  </div>
-</div>
+<button id="clearFilled">
+  Clear Autofilled Fields
+</button>
+
 
 <script src="popup.js"></script>
 

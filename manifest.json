@@ -3,7 +3,7 @@
   "name": "Smart Form Autofill",
   "version": "2.0",
   "description": "Intelligent form autofill with fuzzy matching - fully local, no API calls",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting","downloads"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

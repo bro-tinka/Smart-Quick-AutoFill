@@ -15,8 +15,8 @@ A lightweight Chrome extension that intelligently autofills forms across website
 - 🔄 Handles dynamic forms (React, Angular, etc.)
 - 🎨 Highlights filled fields
 - 🧹 Clear individual or all saved data
-- 🔒 Fully local — no API, no tracking (you have your data!)
-- ⬆️⬇️ (import Export Data utilities)
+- 🔒 Fully local — no API, no tracking
+- ⬇️⬆️ Import/Export userData (data remains with YOU only!)
 
 ## How It Works
 
@@ -35,14 +35,13 @@ A lightweight Chrome extension that intelligently autofills forms across website
 
 ## Installation
 
-1. Clone/download the repo or ZiP File
-2. Open Chrome and type →```chrome://extensions/```  
+1. Clone/download the repo  
+2. Open Chrome → `chrome://extensions/`  
 3. Enable **Developer mode**  
 4. Click **Load unpacked**  
-5. Select Unzipped folder  
-6. You can see your extension in the extension bar in top right of your browser Tab
+5. Select project folder  
+
 ## Notes
 
 - Works best when form labels are clear
-- 100% fully offline
 - No data leaves your browser
