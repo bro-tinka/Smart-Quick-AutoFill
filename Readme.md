@@ -33,13 +33,14 @@ A lightweight Chrome extension that intelligently autofills forms across website
 - Vanilla JavaScript (no libraries)
 - Token-based + fuzzy matching (Levenshtein)
 
-## Installation
+## Installation Guide
 
-1. Clone/download the repo  
+1. Clone/download the repo or Simply Download the Zip & Extract it!
 2. Open Chrome → `chrome://extensions/`  
-3. Enable **Developer mode**  
+3. Enable **Developer mode**  (from top-right)
 4. Click **Load unpacked**  
-5. Select project folder  
+5. Select extracted zip folder  
+
 
 ## Notes
 
